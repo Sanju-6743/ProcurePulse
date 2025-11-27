@@ -78,6 +78,11 @@ interface Vendor {
   };
   status: 'active' | 'suspended' | 'pending' | 'blacklisted';
   categories: string[];
+  complianceDocs?: {
+    type: string;
+    url: string;
+    expiryDate: string;
+  }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -97,6 +102,9 @@ export default function VendorsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDocumentsDialogOpen, setIsDocumentsDialogOpen] = useState(false);
+  const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
   const queryClient = useQueryClient();
 
   const [newVendor, setNewVendor] = useState({
@@ -222,6 +230,110 @@ export default function VendorsPage() {
       console.error('Error adding vendor:', err);
       toast.error(err?.message ?? 'Failed to add vendor');
     }
+  };
+
+  const handleEditVendor = async () => {
+    if (!selectedVendor) return;
+
+    // Client-side validation
+    if (!newVendor.name.trim() || !newVendor.taxId.trim()) {
+      toast.error('Company Name and Tax ID are required');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/vendors', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: selectedVendor.id,
+          ...newVendor,
+        }),
+      });
+
+      if (!response.ok) {
+        const msg = await response.text().catch(() => 'Failed to update vendor');
+        throw new Error(msg);
+      }
+
+      toast.success('Vendor updated successfully');
+
+      // Refresh via React Query
+      await queryClient.invalidateQueries({ queryKey: ['vendors'] });
+
+      // Close dialog and reset
+      setIsEditDialogOpen(false);
+      setSelectedVendor(null);
+      setNewVendor({
+        name: '',
+        taxId: '',
+        registrationNumber: '',
+        address: {
+          street: '',
+          city: '',
+          state: '',
+          country: '',
+          zipCode: '',
+        },
+        contact: {
+          name: '',
+          email: '',
+          phone: '',
+        },
+        categories: [],
+        status: 'pending',
+      });
+    } catch (err: any) {
+      console.error('Error updating vendor:', err);
+      toast.error(err?.message ?? 'Failed to update vendor');
+    }
+  };
+
+  const handleDeleteVendor = async () => {
+    if (!vendorToDelete) return;
+
+    try {
+      const response = await fetch(`/api/vendors?id=${vendorToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const msg = await response.text().catch(() => 'Failed to delete vendor');
+        throw new Error(msg);
+      }
+
+      toast.success('Vendor deleted successfully');
+
+      // Refresh via React Query
+      await queryClient.invalidateQueries({ queryKey: ['vendors'] });
+
+      // Close dialog
+      setVendorToDelete(null);
+    } catch (err: any) {
+      console.error('Error deleting vendor:', err);
+      toast.error(err?.message ?? 'Failed to delete vendor');
+    }
+  };
+
+  const handleEditClick = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setNewVendor({
+      name: vendor.name,
+      taxId: vendor.taxId,
+      registrationNumber: vendor.registrationNumber,
+      address: vendor.address,
+      contact: vendor.contact,
+      categories: vendor.categories,
+      status: vendor.status,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleViewDocuments = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setIsDocumentsDialogOpen(true);
   };
 
   return (
@@ -422,15 +534,18 @@ export default function VendorsPage() {
                                   <Eye className="mr-2 h-4 w-4" />
                                   View Details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleEditClick(vendor)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleViewDocuments(vendor)}>
                                   <FileText className="mr-2 h-4 w-4" />
                                   View Documents
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600">
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => setVendorToDelete(vendor)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Delete
                                 </DropdownMenuItem>
@@ -681,6 +796,334 @@ export default function VendorsPage() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Edit Vendor Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Vendor</DialogTitle>
+              <DialogDescription>
+                Update vendor information for {selectedVendor?.name}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Company Name *</Label>
+                  <Input
+                    id="edit-name"
+                    value={newVendor.name}
+                    onChange={(e) =>
+                      setNewVendor((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    placeholder="Enter company name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-taxId">Tax ID *</Label>
+                  <Input
+                    id="edit-taxId"
+                    value={newVendor.taxId}
+                    onChange={(e) =>
+                      setNewVendor((prev) => ({ ...prev, taxId: e.target.value }))
+                    }
+                    placeholder="Enter tax ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-registrationNumber">Registration Number</Label>
+                  <Input
+                    id="edit-registrationNumber"
+                    value={newVendor.registrationNumber}
+                    onChange={(e) =>
+                      setNewVendor((prev) => ({
+                        ...prev,
+                        registrationNumber: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter registration number"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Select
+                    value={newVendor.status}
+                    onValueChange={(value: Vendor['status']) =>
+                      setNewVendor((prev) => ({ ...prev, status: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="blacklisted">Blacklisted</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className="space-y-4">
+                <Label>Address</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="edit-street">Street Address</Label>
+                    <Input
+                      id="edit-street"
+                      value={newVendor.address.street}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, street: e.target.value },
+                        }))
+                      }
+                      placeholder="Enter street address"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-city">City</Label>
+                    <Input
+                      id="edit-city"
+                      value={newVendor.address.city}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, city: e.target.value },
+                        }))
+                      }
+                      placeholder="Enter city"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-state">State</Label>
+                    <Input
+                      id="edit-state"
+                      value={newVendor.address.state}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, state: e.target.value },
+                        }))
+                      }
+                      placeholder="Enter state"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-country">Country</Label>
+                    <Input
+                      id="edit-country"
+                      value={newVendor.address.country}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, country: e.target.value },
+                        }))
+                      }
+                      placeholder="Enter country"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-zipCode">ZIP Code</Label>
+                    <Input
+                      id="edit-zipCode"
+                      value={newVendor.address.zipCode}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, zipCode: e.target.value },
+                        }))
+                      }
+                      placeholder="Enter ZIP code"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <Label>Contact Information</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-contactName">Contact Name</Label>
+                    <Input
+                      id="edit-contactName"
+                      value={newVendor.contact.name}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          contact: { ...prev.contact, name: e.target.value },
+                        }))
+                      }
+                      placeholder="Enter contact name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={newVendor.contact.email}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          contact: { ...prev.contact, email: e.target.value },
+                        }))
+                      }
+                      placeholder="Enter email address"
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="edit-phone">Phone</Label>
+                    <Input
+                      id="edit-phone"
+                      value={newVendor.contact.phone}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          contact: { ...prev.contact, phone: e.target.value },
+                        }))
+                      }
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Categories */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-categories">Categories</Label>
+                <Textarea
+                  id="edit-categories"
+                  value={newVendor.categories.join(', ')}
+                  onChange={(e) =>
+                    setNewVendor((prev) => ({
+                      ...prev,
+                      categories: e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    }))
+                  }
+                  placeholder="Enter categories separated by commas (e.g., Electronics, Software, Hardware)"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditVendor} disabled={isAddDisabled}>
+                <Edit className="w-4 h-4 mr-2" />
+                Update Vendor
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Documents Dialog */}
+        <Dialog open={isDocumentsDialogOpen} onOpenChange={setIsDocumentsDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Vendor Documents</DialogTitle>
+              <DialogDescription>
+                Compliance and verification documents for {selectedVendor?.name}
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedVendor && (
+              <div className="space-y-6">
+                <div className="grid gap-4">
+                  {selectedVendor.complianceDocs && selectedVendor.complianceDocs.length > 0 ? (
+                    selectedVendor.complianceDocs.map((doc, index) => (
+                      <Card key={index}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <FileText className="w-8 h-8 text-blue-500" />
+                              <div>
+                                <p className="font-medium">{doc.type}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Expires: {new Date(doc.expiryDate).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <Button variant="outline" size="sm">
+                              View Document
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No documents available</p>
+                      <p className="text-sm">Compliance documents will appear here once uploaded</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDocumentsDialogOpen(false)}>
+                Close
+              </Button>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Upload Document
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={!!vendorToDelete} onOpenChange={() => setVendorToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Vendor</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete {vendorToDelete?.name}? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  <div>
+                    <p className="font-medium text-red-800">Warning</p>
+                    <p className="text-sm text-red-600">
+                      Deleting this vendor will permanently remove all associated data including:
+                    </p>
+                    <ul className="text-sm text-red-600 mt-2 list-disc list-inside">
+                      <li>Vendor information and contact details</li>
+                      <li>Compliance documents</li>
+                      <li>Performance metrics and history</li>
+                      <li>Related purchase orders and transactions</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVendorToDelete(null)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteVendor}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Vendor
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Vendor Details Dialog */}
         <Dialog open={!!selectedVendor} onOpenChange={() => setSelectedVendor(null)}>

@@ -106,3 +106,88 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { id, ...vendorData } = await request.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: 'Vendor ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const updatedVendor = await db.vendor.update({
+      where: { id },
+      data: {
+        name: vendorData.name,
+        taxId: vendorData.taxId,
+        registrationNumber: vendorData.registrationNumber,
+        address: vendorData.address,
+        contact: vendorData.contact,
+        bankDetails: vendorData.bankDetails,
+        complianceDocs: vendorData.complianceDocs,
+        riskScore: vendorData.riskScore,
+        slaMetrics: vendorData.slaMetrics,
+        status: vendorData.status,
+        categories: vendorData.categories,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Transform for response
+    const transformedVendor = {
+      ...updatedVendor,
+      address: updatedVendor.address as any,
+      contact: updatedVendor.contact as any,
+      bankDetails: updatedVendor.bankDetails as any,
+      complianceDocs: updatedVendor.complianceDocs as any,
+      slaMetrics: updatedVendor.slaMetrics as any,
+      categories: updatedVendor.categories as any,
+    };
+
+    return NextResponse.json({
+      data: transformedVendor,
+      success: true,
+      message: 'Vendor updated successfully',
+      timestamp: new Date(),
+    });
+  } catch (error) {
+    console.error('Error updating vendor:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to update vendor' },
+      { status: 400 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: 'Vendor ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await db.vendor.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Vendor deleted successfully',
+      timestamp: new Date(),
+    });
+  } catch (error) {
+    console.error('Error deleting vendor:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to delete vendor' },
+      { status: 500 }
+    );
+  }
+}
