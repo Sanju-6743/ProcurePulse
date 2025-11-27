@@ -1,14 +1,18 @@
+
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -16,22 +20,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { 
+import {
   Building2,
   Plus,
   Search,
@@ -48,7 +51,7 @@ import {
   MapPin,
   FileText,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Vendor {
   id: string;
@@ -93,6 +96,32 @@ export default function VendorsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const [newVendor, setNewVendor] = useState({
+    name: '',
+    taxId: '',
+    registrationNumber: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      country: '',
+      zipCode: '',
+    },
+    contact: {
+      name: '',
+      email: '',
+      phone: '',
+    },
+    categories: [] as string[],
+    status: 'pending' as Vendor['status'],
+  });
+
+  const isAddDisabled =
+    !newVendor.name.trim() ||
+    !newVendor.taxId.trim();
 
   const { data: vendorsData, isLoading, error } = useQuery<VendorsResponse>({
     queryKey: ['vendors', currentPage, searchTerm],
@@ -102,7 +131,6 @@ export default function VendorsPage() {
         limit: '10',
         search: searchTerm,
       });
-      
       const response = await fetch(`/api/vendors?${params}`);
       if (!response.ok) throw new Error('Failed to fetch vendors');
       return response.json();
@@ -136,6 +164,66 @@ export default function VendorsPage() {
     return <AlertTriangle className="w-4 h-4" />;
   };
 
+  const handleAddVendor = async () => {
+    // Client-side validation
+    if (!newVendor.name.trim() || !newVendor.taxId.trim()) {
+      toast.error('Company Name and Tax ID are required');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // If your API requires riskScore / slaMetrics, send sensible defaults
+        body: JSON.stringify({
+          ...newVendor,
+          riskScore: 50,
+          slaMetrics: { onTimeDelivery: 0, qualityScore: 0, responsiveness: 0 },
+        }),
+      });
+
+      if (!response.ok) {
+        const msg = await response.text().catch(() => 'Failed to add vendor');
+        throw new Error(msg);
+      }
+
+      toast.success('Vendor added successfully');
+
+      // Reset form
+      setNewVendor({
+        name: '',
+        taxId: '',
+        registrationNumber: '',
+        address: {
+          street: '',
+          city: '',
+          state: '',
+          country: '',
+          zipCode: '',
+        },
+        contact: {
+          name: '',
+          email: '',
+          phone: '',
+        },
+        categories: [],
+        status: 'pending',
+      });
+
+      // Refresh via React Query (no full page reload)
+      await queryClient.invalidateQueries({ queryKey: ['vendors'] });
+
+      // Close dialog
+      setIsAddDialogOpen(false);
+    } catch (err: any) {
+      console.error('Error adding vendor:', err);
+      toast.error(err?.message ?? 'Failed to add vendor');
+    }
+  };
+
   return (
     <AuthGuard requiredRoles={['buyer', 'admin', 'auditor']}>
       <MainLayout>
@@ -148,10 +236,20 @@ export default function VendorsPage() {
                 Manage your vendor relationships and performance metrics
               </p>
             </div>
-            <Button>
+
+            <Button
+              type="button"
+              variant="default"
+              title="Add new vendor"
+              onClick={() => {
+                console.log('Add Vendor button clicked');
+                setIsAddDialogOpen(true);
+              }}
+            >
               <Plus className="w-4 h-4 mr-2" />
-              Add Vendor
+              add new vendor
             </Button>
+
           </div>
 
           {/* Stats Cards */}
@@ -162,10 +260,8 @@ export default function VendorsPage() {
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{vendorsData?.pagination.total || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  +2 from last month
-                </p>
+                <div className="text-2xl font-bold">{vendorsData?.pagination.total ?? 0}</div>
+                <p className="text-xs text-muted-foreground">+2 from last month</p>
               </CardContent>
             </Card>
 
@@ -176,11 +272,9 @@ export default function VendorsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {vendorsData?.data.filter(v => v.status === 'active').length || 0}
+                  {vendorsData?.data.filter(v => v.status === 'active').length ?? 0}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  In good standing
-                </p>
+                <p className="text-xs text-muted-foreground">In good standing</p>
               </CardContent>
             </Card>
 
@@ -191,14 +285,14 @@ export default function VendorsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {vendorsData?.data.length 
-                    ? Math.round(vendorsData.data.reduce((acc, v) => acc + v.riskScore, 0) / vendorsData.data.length)
-                    : 0
-                  }
+                  {vendorsData?.data.length
+                    ? Math.round(
+                        vendorsData.data.reduce((acc, v) => acc + v.riskScore, 0) /
+                          vendorsData.data.length
+                      )
+                    : 0}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Overall risk assessment
-                </p>
+                <p className="text-xs text-muted-foreground">Overall risk assessment</p>
               </CardContent>
             </Card>
 
@@ -209,27 +303,29 @@ export default function VendorsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {vendorsData?.data.length 
-                    ? Math.round(vendorsData.data.reduce((acc, v) => acc + v.slaMetrics.onTimeDelivery, 0) / vendorsData.data.length)
-                    : 0
-                  }%
+                  {vendorsData?.data.length
+                    ? Math.round(
+                        vendorsData.data.reduce(
+                          (acc, v) => acc + v.slaMetrics.onTimeDelivery,
+                          0
+                        ) / vendorsData.data.length
+                      )
+                    : 0}
+                  %
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  On-time delivery
-                </p>
+                <p className="text-xs text-muted-foreground">On-time delivery</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Search and Filters */}
+          {/* Vendor List Card */}
           <Card>
             <CardHeader>
               <CardTitle>Vendor List</CardTitle>
-              <CardDescription>
-                View and manage all registered vendors
-              </CardDescription>
+              <CardDescription>View and manage all registered vendors</CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Search */}
               <div className="flex items-center space-x-2 mb-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -273,9 +369,7 @@ export default function VendorsPage() {
                           <TableCell>
                             <div>
                               <div className="font-medium">{vendor.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {vendor.taxId}
-                              </div>
+                              <div className="text-sm text-muted-foreground">{vendor.taxId}</div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -303,9 +397,7 @@ export default function VendorsPage() {
                               <span className="font-medium">{vendor.slaMetrics.onTimeDelivery}%</span>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            {getStatusBadge(vendor.status)}
-                          </TableCell>
+                          <TableCell>{getStatusBadge(vendor.status)}</TableCell>
                           <TableCell>
                             <div className="text-sm">
                               <div className="flex items-center space-x-1">
@@ -359,17 +451,247 @@ export default function VendorsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Add Vendor Dialog */}
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add New Vendor</DialogTitle>
+                <DialogDescription>
+                  Enter the vendor information to add them to your vendor list
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Company Name *</Label>
+                    <Input
+                      id="name"
+                      value={newVendor.name}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({ ...prev, name: e.target.value }))
+                      }
+                      placeholder="Enter company name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="taxId">Tax ID *</Label>
+                    <Input
+                      id="taxId"
+                      value={newVendor.taxId}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({ ...prev, taxId: e.target.value }))
+                      }
+                      placeholder="Enter tax ID"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="registrationNumber">Registration Number</Label>
+                    <Input
+                      id="registrationNumber"
+                      value={newVendor.registrationNumber}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          registrationNumber: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter registration number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={newVendor.status}
+                      onValueChange={(value: Vendor['status']) =>
+                        setNewVendor((prev) => ({ ...prev, status: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="suspended">Suspended</SelectItem>
+                        <SelectItem value="blacklisted">Blacklisted</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div className="space-y-4">
+                  <Label>Address</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="street">Street Address</Label>
+                      <Input
+                        id="street"
+                        value={newVendor.address.street}
+                        onChange={(e) =>
+                          setNewVendor((prev) => ({
+                            ...prev,
+                            address: { ...prev.address, street: e.target.value },
+                          }))
+                        }
+                        placeholder="Enter street address"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={newVendor.address.city}
+                        onChange={(e) =>
+                          setNewVendor((prev) => ({
+                            ...prev,
+                            address: { ...prev.address, city: e.target.value },
+                          }))
+                        }
+                        placeholder="Enter city"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="state">State</Label>
+                      <Input
+                        id="state"
+                        value={newVendor.address.state}
+                        onChange={(e) =>
+                          setNewVendor((prev) => ({
+                            ...prev,
+                            address: { ...prev.address, state: e.target.value },
+                          }))
+                        }
+                        placeholder="Enter state"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="country">Country</Label>
+                      <Input
+                        id="country"
+                        value={newVendor.address.country}
+                        onChange={(e) =>
+                          setNewVendor((prev) => ({
+                            ...prev,
+                            address: { ...prev.address, country: e.target.value },
+                          }))
+                        }
+                        placeholder="Enter country"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="zipCode">ZIP Code</Label>
+                      <Input
+                        id="zipCode"
+                        value={newVendor.address.zipCode}
+                        onChange={(e) =>
+                          setNewVendor((prev) => ({
+                            ...prev,
+                            address: { ...prev.address, zipCode: e.target.value },
+                          }))
+                        }
+                        placeholder="Enter ZIP code"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="space-y-4">
+                  <Label>Contact Information</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="contactName">Contact Name</Label>
+                      <Input
+                        id="contactName"
+                        value={newVendor.contact.name}
+                        onChange={(e) =>
+                          setNewVendor((prev) => ({
+                            ...prev,
+                            contact: { ...prev.contact, name: e.target.value },
+                          }))
+                        }
+                        placeholder="Enter contact name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={newVendor.contact.email}
+                        onChange={(e) =>
+                          setNewVendor((prev) => ({
+                            ...prev,
+                            contact: { ...prev.contact, email: e.target.value },
+                          }))
+                        }
+                        placeholder="Enter email address"
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input
+                        id="phone"
+                        value={newVendor.contact.phone}
+                        onChange={(e) =>
+                          setNewVendor((prev) => ({
+                            ...prev,
+                            contact: { ...prev.contact, phone: e.target.value },
+                          }))
+                        }
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Categories */}
+                <div className="space-y-2">
+                  <Label htmlFor="categories">Categories</Label>
+                  <Textarea
+                    id="categories"
+                    value={newVendor.categories.join(', ')}
+                    onChange={(e) =>
+                      setNewVendor((prev) => ({
+                        ...prev,
+                        categories: e.target.value
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter((s) => s),
+                      }))
+                    }
+                    placeholder="Enter categories separated by commas (e.g., Electronics, Software, Hardware)"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddVendor} disabled={isAddDisabled}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Vendor
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Vendor Details Dialog */}
         <Dialog open={!!selectedVendor} onOpenChange={() => setSelectedVendor(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Vendor Details</DialogTitle>
               <DialogDescription>
                 Complete information about {selectedVendor?.name}
               </DialogDescription>
             </DialogHeader>
+
             {selectedVendor && (
               <div className="space-y-6">
                 {/* Basic Information */}
@@ -399,7 +721,10 @@ export default function VendorsPage() {
                     <MapPin className="w-4 h-4 mt-0.5 text-muted-foreground" />
                     <div>
                       <p>{selectedVendor.address.street}</p>
-                      <p>{selectedVendor.address.city}, {selectedVendor.address.state} {selectedVendor.address.zipCode}</p>
+                      <p>
+                        {selectedVendor.address.city}, {selectedVendor.address.state}{' '}
+                        {selectedVendor.address.zipCode}
+                      </p>
                       <p>{selectedVendor.address.country}</p>
                     </div>
                   </div>
@@ -461,6 +786,7 @@ export default function VendorsPage() {
                 </div>
               </div>
             )}
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setSelectedVendor(null)}>
                 Close
@@ -472,6 +798,8 @@ export default function VendorsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+
       </MainLayout>
     </AuthGuard>
   );
