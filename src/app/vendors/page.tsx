@@ -131,6 +131,10 @@ export default function VendorsPage() {
     !newVendor.name.trim() ||
     !newVendor.taxId.trim();
 
+  const isEditDisabled =
+    !newVendor.name.trim() ||
+    !newVendor.taxId.trim();
+
   const { data: vendorsData, isLoading, error } = useQuery<VendorsResponse>({
     queryKey: ['vendors', currentPage, searchTerm],
     queryFn: async () => {
@@ -1018,7 +1022,7 @@ export default function VendorsPage() {
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleEditVendor} disabled={isAddDisabled}>
+              <Button onClick={handleEditVendor} disabled={isEditDisabled}>
                 <Edit className="w-4 h-4 mr-2" />
                 Update Vendor
               </Button>
