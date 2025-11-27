@@ -538,11 +538,11 @@ export default function VendorsPage() {
                                   <Eye className="mr-2 h-4 w-4" />
                                   View Details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEditClick(vendor)}>
+                                <DropdownMenuItem onClick={() => handleViewDocuments(vendor)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleViewDocuments(vendor)}>
+                                <DropdownMenuItem onClick={() => handleEditClick(vendor)}>
                                   <FileText className="mr-2 h-4 w-4" />
                                   View Documents
                                 </DropdownMenuItem>
