@@ -1238,7 +1238,21 @@ export default function VendorsPage() {
               <Button variant="outline" onClick={() => setSelectedVendor(null)}>
                 Close
               </Button>
-              <Button>
+              <Button onClick={() => {
+                if (selectedVendor) {
+                  setIsEditDialogOpen(true);
+                  setSelectedVendor(selectedVendor);
+                  setNewVendor({
+                    name: selectedVendor.name,
+                    taxId: selectedVendor.taxId,
+                    registrationNumber: selectedVendor.registrationNumber,
+                    address: selectedVendor.address,
+                    contact: selectedVendor.contact,
+                    categories: selectedVendor.categories,
+                    status: selectedVendor.status,
+                  });
+                }
+              }}>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Vendor
               </Button>
