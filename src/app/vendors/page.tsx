@@ -105,6 +105,9 @@ export default function VendorsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDocumentsDialogOpen, setIsDocumentsDialogOpen] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
+  const [documentType, setDocumentType] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
 
   const [newVendor, setNewVendor] = useState({
@@ -338,6 +341,104 @@ export default function VendorsPage() {
   const handleViewDocuments = (vendor: Vendor) => {
     setSelectedVendor(vendor);
     setIsDocumentsDialogOpen(true);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUploadDocument = async () => {
+    if (!selectedFile || !documentType || !selectedVendor) {
+      toast.error('Please select a file and document type');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // For now, we'll simulate document upload by updating the vendor record
+      // In a real application, you would upload to cloud storage and get a URL back
+      const newDocument = {
+        type: documentType,
+        url: `/documents/${Date.now()}-${selectedFile.name}`,
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+      };
+
+      // Update vendor with new document
+      const currentDocs = selectedVendor.complianceDocs || [];
+      const updatedVendor = {
+        ...selectedVendor,
+        complianceDocs: [...currentDocs, newDocument],
+      };
+
+      // Update via API
+      const response = await fetch('/api/vendors', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: selectedVendor.id,
+          complianceDocs: updatedVendor.complianceDocs,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload document');
+      }
+
+      // Update local state
+      setSelectedVendor(updatedVendor);
+
+      // Reset form
+      setSelectedFile(null);
+      setDocumentType('');
+
+      toast.success('Document uploaded successfully');
+    } catch (error: any) {
+      console.error('Error uploading document:', error);
+      toast.error(error?.message ?? 'Failed to upload document');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (index: number) => {
+    if (!selectedVendor) return;
+
+    try {
+      const currentDocs = selectedVendor.complianceDocs || [];
+      const updatedDocs = currentDocs.filter((_, i) => i !== index);
+
+      // Update via API
+      const response = await fetch('/api/vendors', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: selectedVendor.id,
+          complianceDocs: updatedDocs,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete document');
+      }
+
+      // Update local state
+      setSelectedVendor({
+        ...selectedVendor,
+        complianceDocs: updatedDocs,
+      });
+
+      toast.success('Document deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting document:', error);
+      toast.error(error?.message ?? 'Failed to delete document');
+    }
   };
 
   return (
@@ -1042,6 +1143,59 @@ export default function VendorsPage() {
 
             {selectedVendor && (
               <div className="space-y-6">
+                {/* Upload Section */}
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="space-y-4">
+                      <Label htmlFor="document-type">Document Type</Label>
+                      <Select value={documentType} onValueChange={setDocumentType}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select document type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="business-license">Business License</SelectItem>
+                          <SelectItem value="tax-certificate">Tax Certificate</SelectItem>
+                          <SelectItem value="insurance">Insurance Certificate</SelectItem>
+                          <SelectItem value="compliance-report">Compliance Report</SelectItem>
+                          <SelectItem value="contract">Contract Agreement</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="document-file">Upload Document</Label>
+                        <Input
+                          id="document-file"
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={handleFileSelect}
+                          className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                      </div>
+
+                      {selectedFile && (
+                        <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <FileText className="w-5 h-5 text-green-600" />
+                            <span className="text-sm font-medium">{selectedFile.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                            </span>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={handleUploadDocument}
+                            disabled={isUploading}
+                          >
+                            {isUploading ? 'Uploading...' : 'Upload'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Documents List */}
                 <div className="grid gap-4">
                   {selectedVendor.complianceDocs && selectedVendor.complianceDocs.length > 0 ? (
                     selectedVendor.complianceDocs.map((doc, index) => (
@@ -1053,13 +1207,22 @@ export default function VendorsPage() {
                               <div>
                                 <p className="font-medium">{doc.type}</p>
                                 <p className="text-sm text-muted-foreground">
-                                  Expires: {new Date(doc.expiryDate).toLocaleDateString()}
+                                  Uploaded: {new Date(doc.expiryDate).toLocaleDateString()}
                                 </p>
                               </div>
                             </div>
-                            <Button variant="outline" size="sm">
-                              View Document
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button variant="outline" size="sm">
+                                View
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteDocument(index)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -1068,7 +1231,7 @@ export default function VendorsPage() {
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>No documents available</p>
-                      <p className="text-sm">Compliance documents will appear here once uploaded</p>
+                      <p className="text-sm">Upload compliance documents using the form above</p>
                     </div>
                   )}
                 </div>
@@ -1078,10 +1241,6 @@ export default function VendorsPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDocumentsDialogOpen(false)}>
                 Close
-              </Button>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Upload Document
               </Button>
             </DialogFooter>
           </DialogContent>
