@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
     const trimmedSearch = search.trim();
     const where = trimmedSearch ? {
       OR: [
-        { name: { contains: trimmedSearch, mode: 'insensitive' } },
-        { taxId: { contains: trimmedSearch, mode: 'insensitive' } }
+        { name: { contains: trimmedSearch } },
+        { taxId: { contains: trimmedSearch } }
       ]
     } : {};
 
@@ -64,7 +64,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const vendorData = await request.json();
+    let vendorData;
+    try {
+      vendorData = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, message: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
 
     if (!vendorData.name || !vendorData.taxId || !vendorData.registrationNumber || !vendorData.address || !vendorData.contact) {
       return NextResponse.json(
