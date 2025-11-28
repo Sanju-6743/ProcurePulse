@@ -545,13 +545,22 @@ export default function VendorsPage() {
               {/* Search */}
               <div className="flex items-center space-x-2 mb-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    placeholder="Search vendors by name, tax ID, or category..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+                  <div className="wave-group">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="input"
+                    />
+                    <label className="label">
+                      {"Search vendors by name, tax ID, or category...".split('').map((char, i) => (
+                        <span className="label-char" style={{ '--index': i } as any} key={i}>
+                          {char}
+                        </span>
+                      ))}
+                    </label>
+                    <span className="bar"></span>
+                  </div>
                 </div>
               </div>
 
@@ -871,21 +880,31 @@ export default function VendorsPage() {
 
                 {/* Categories */}
                 <div className="space-y-2">
-                  <Label htmlFor="categories">Categories</Label>
-                  <Textarea
-                    id="categories"
-                    value={newVendor.categories.join(', ')}
-                    onChange={(e) =>
-                      setNewVendor((prev) => ({
-                        ...prev,
-                        categories: e.target.value
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter((s) => s),
-                      }))
-                    }
-                    placeholder="Enter categories separated by commas (e.g., Electronics, Software, Hardware)"
-                  />
+                  <div className="wave-group">
+                    <textarea
+                      id="categories"
+                      value={newVendor.categories.join(', ')}
+                      onChange={(e) =>
+                        setNewVendor((prev) => ({
+                          ...prev,
+                          categories: e.target.value
+                            .split(',')
+                            .map((s) => s.trim())
+                            .filter((s) => s),
+                        }))
+                      }
+                      className="input"
+                      rows={3}
+                    />
+                    <label className="label">
+                      {"Categories".split('').map((char, i) => (
+                        <span className="label-char" style={{ '--index': i } as any} key={i}>
+                          {char}
+                        </span>
+                      ))}
+                    </label>
+                    <span className="bar"></span>
+                  </div>
                 </div>
               </div>
 

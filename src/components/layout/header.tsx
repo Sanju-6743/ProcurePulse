@@ -15,13 +15,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
-  Bell, 
-  Search, 
-  Menu, 
-  Sun, 
-  Moon, 
+import {
+  Bell,
+  Search,
+  Menu,
+  Sun,
+  Moon,
   Contrast,
+  Monitor,
   User,
   Settings,
   LogOut,
@@ -51,7 +52,7 @@ export function Header({ className }: HeaderProps) {
     if (theme === 'light') {
       setTheme('dark');
     } else if (theme === 'dark') {
-      setTheme('high-contrast');
+      setTheme('system');
     } else {
       setTheme('light');
     }
@@ -61,8 +62,8 @@ export function Header({ className }: HeaderProps) {
     switch (theme) {
       case 'dark':
         return <Moon className="w-4 h-4" />;
-      case 'high-contrast':
-        return <Contrast className="w-4 h-4" />;
+      case 'system':
+        return <Monitor className="w-4 h-4" />;
       default:
         return <Sun className="w-4 h-4" />;
     }
@@ -91,13 +92,20 @@ export function Header({ className }: HeaderProps) {
 
         {/* Search bar */}
         <div className="flex-1 max-w-md mx-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <div className="wave-group">
             <input
               type="text"
-              placeholder="Search vendors, products, requisitions..."
-              className="w-full pl-10 pr-4 py-2 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="input"
+              required
             />
+            <label className="label">
+              {"Search vendors, products, requisitions...".split('').map((char, i) => (
+                <span className="label-char" style={{ '--index': i } as any} key={i}>
+                  {char}
+                </span>
+              ))}
+            </label>
+            <span className="bar"></span>
           </div>
         </div>
 

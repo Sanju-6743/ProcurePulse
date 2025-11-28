@@ -1,14 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Package, 
-  Plus, 
-  Search, 
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Package,
+  Plus,
+  Search,
   Filter,
   DollarSign,
   Box,
@@ -19,6 +24,8 @@ import {
 } from 'lucide-react';
 
 export default function ProductsPage() {
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+
   return (
     <AuthGuard requiredRoles={['requester', 'buyer', 'admin', 'auditor']}>
       <MainLayout>
@@ -31,10 +38,62 @@ export default function ProductsPage() {
                 Manage your product catalog and pricing information
               </p>
             </div>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Product
-            </Button>
+            <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Product
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Product</DialogTitle>
+                  <DialogDescription>
+                    Add a new product to your catalog. Fill in the details below.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">
+                      Name
+                    </Label>
+                    <Input id="name" placeholder="Product name" className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="sku" className="text-right">
+                      SKU
+                    </Label>
+                    <Input id="sku" placeholder="Product SKU" className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="category" className="text-right">
+                      Category
+                    </Label>
+                    <Input id="category" placeholder="Product category" className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="price" className="text-right">
+                      Price
+                    </Label>
+                    <Input id="price" type="number" placeholder="0.00" className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="description" className="text-right">
+                      Description
+                    </Label>
+                    <Textarea id="description" placeholder="Product description" className="col-span-3" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsAddProductOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={() => setIsAddProductOpen(false)}>
+                    Add Product
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Stats Cards */}

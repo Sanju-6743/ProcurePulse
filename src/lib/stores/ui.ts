@@ -3,15 +3,15 @@ import { devtools, persist } from 'zustand/middleware';
 import type { Notification } from '@/lib/types';
 
 interface UIState {
-  theme: 'light' | 'dark' | 'high-contrast';
+  theme: 'light' | 'dark' | 'high-contrast' | 'system';
   locale: string;
   currency: string;
   sidebarOpen: boolean;
   notifications: Notification[];
   unreadCount: number;
-  
+
   // Theme
-  setTheme: (theme: 'light' | 'dark' | 'high-contrast') => void;
+  setTheme: (theme: 'light' | 'dark' | 'high-contrast' | 'system') => void;
   
   // Locale and Currency
   setLocale: (locale: string) => void;
@@ -51,7 +51,11 @@ export const useUIStore = create<UIState>()(
         setTheme: (theme) => {
           set({ theme });
           // Apply theme to document
-          if (theme === 'dark' || theme === 'high-contrast') {
+          let effectiveTheme = theme;
+          if (theme === 'system') {
+            effectiveTheme = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          if (effectiveTheme === 'dark' || effectiveTheme === 'high-contrast') {
             document.documentElement.classList.add('dark');
           } else {
             document.documentElement.classList.remove('dark');

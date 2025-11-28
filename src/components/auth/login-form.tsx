@@ -128,29 +128,47 @@ export default function LoginPage() {
                 )}
                 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={credentials.email}
-                    onChange={handleInputChange}
-                    required
-                  />
+                  <div className="wave-group">
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={credentials.email}
+                      onChange={handleInputChange}
+                      required
+                      className="input"
+                    />
+                    <label className="label">
+                      {"Email".split('').map((char, i) => (
+                        <span className="label-char" style={{ '--index': i } as any} key={i}>
+                          {char}
+                        </span>
+                      ))}
+                    </label>
+                    <span className="bar"></span>
+                  </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={credentials.password}
-                    onChange={handleInputChange}
-                    required
-                  />
+                  <div className="wave-group">
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={credentials.password}
+                      onChange={handleInputChange}
+                      required
+                      className="input"
+                    />
+                    <label className="label">
+                      {"Password".split('').map((char, i) => (
+                        <span className="label-char" style={{ '--index': i } as any} key={i}>
+                          {char}
+                        </span>
+                      ))}
+                    </label>
+                    <span className="bar"></span>
+                  </div>
                 </div>
               </CardContent>
               
