@@ -13,10 +13,11 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause for search
-    const where = search ? {
+    const trimmedSearch = search.trim();
+    const where = trimmedSearch ? {
       OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { taxId: { contains: search, mode: 'insensitive' } }
+        { name: { contains: trimmedSearch, mode: 'insensitive' } },
+        { taxId: { contains: trimmedSearch, mode: 'insensitive' } }
       ]
     } : {};
 
@@ -64,6 +65,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const vendorData = await request.json();
+
+    if (!vendorData.name || !vendorData.taxId || !vendorData.registrationNumber || !vendorData.address || !vendorData.contact) {
+      return NextResponse.json(
+        { success: false, message: 'Missing required fields: name, taxId, registrationNumber, address, contact' },
+        { status: 400 }
+      );
+    }
 
     const newVendor = await db.vendor.create({
       data: {
