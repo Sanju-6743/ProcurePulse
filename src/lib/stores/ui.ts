@@ -51,7 +51,11 @@ export const useUIStore = create<UIState>()(
         setTheme: (theme) => {
           set({ theme });
           // Apply theme to document
-          document.documentElement.setAttribute('data-theme', theme);
+          if (theme === 'dark' || theme === 'high-contrast') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
         },
         
         setLocale: (locale) => {
